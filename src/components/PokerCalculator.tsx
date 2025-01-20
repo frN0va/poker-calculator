@@ -3,23 +3,39 @@
 import React, { useState } from 'react';
 import { useEffect } from 'react';
 
+interface Card {
+  value: string;
+  suit: string;
+}
+
+interface HandProbabilities {
+  pair: number;
+  twoPair: number;
+  threeOfAKind: number;
+  straight: number;
+  flush: number;
+  fullHouse: number;
+  fourOfAKind: number;
+  straightFlush: number;
+}
+
 const PokerCalculator = () => {
   useEffect(() => {
     document.body.classList.add('no-scroll');
 
     return () => {
-        document.body.classList.remove('no-scroll');
+      document.body.classList.remove('no-scroll');
     };
   }, []);
   
-  const [selectedCards, setSelectedCards] = useState(Array(7).fill(null));
-  const [draggedCard, setDraggedCard] = useState(null);
+  const [selectedCards, setSelectedCards] = useState<(Card | null)[]>(Array(7).fill(null));
+  const [draggedCard, setDraggedCard] = useState<Card | null>(null);
   
   const suits = ['♠', '♥', '♦', '♣'];
   const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
   
-  const getNumericValue = (value) => {
-    const valueMap = {
+  const getNumericValue = (value: string): number => {
+    const valueMap: Record<string, number> = {
       'A': 14, 'K': 13, 'Q': 12, 'J': 11,
       '10': 10, '9': 9, '8': 8, '7': 7,
       '6': 6, '5': 5, '4': 4, '3': 3, '2': 2
@@ -27,9 +43,9 @@ const PokerCalculator = () => {
     return valueMap[value];
   };
 
-  const calculateProbability = () => {
-    const playerCards = selectedCards.slice(0, 2).filter(card => card !== null);
-    const communityCards = selectedCards.slice(2).filter(card => card !== null);
+  const calculateProbability = (): HandProbabilities | null => {
+    const playerCards = selectedCards.slice(0, 2).filter((card): card is Card => card !== null);
+    const communityCards = selectedCards.slice(2).filter((card): card is Card => card !== null);
     
     if (playerCards.length !== 2) return null;
 
@@ -38,7 +54,7 @@ const PokerCalculator = () => {
       suit: card.suit
     }));
 
-    const remainingCards = [];
+    const remainingCards: { value: number; suit: string }[] = [];
     suits.forEach(suit => {
       values.forEach(value => {
         if (!usedCards.some(card => card.suit === suit && getNumericValue(value) === card.value)) {
@@ -51,7 +67,7 @@ const PokerCalculator = () => {
     if (cardsTocome === 0) return calculateFinalHand(usedCards);
 
     const trials = 10000;
-    const results = {
+    const results: HandProbabilities = {
       pair: 0, twoPair: 0, threeOfAKind: 0, straight: 0,
       flush: 0, fullHouse: 0, fourOfAKind: 0, straightFlush: 0
     };
@@ -63,16 +79,18 @@ const PokerCalculator = () => {
       const handResult = calculateFinalHand(allCards);
       
       Object.keys(handResult).forEach(hand => {
-        if (handResult[hand]) results[hand]++;
+        if (handResult[hand as keyof HandProbabilities]) {
+          results[hand as keyof HandProbabilities]++;
+        }
       });
     }
 
     return Object.fromEntries(
       Object.entries(results).map(([hand, count]) => [hand, count / trials])
-    );
+    ) as HandProbabilities;
   };
 
-  const calculateFinalHand = (cards) => {
+  const calculateFinalHand = (cards: { value: number; suit: string }[]): HandProbabilities => {
     const sortedCards = [...cards].sort((a, b) => b.value - a.value);
     const values = sortedCards.map(card => card.value);
     const suits = sortedCards.map(card => card.suit);
@@ -93,10 +111,10 @@ const PokerCalculator = () => {
       hasStraight = true;
     }
 
-    const valueCounts = values.reduce((acc, val) => {
+    const valueCounts: Record<number, number> = values.reduce((acc, val) => {
       acc[val] = (acc[val] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as Record<number, number>);
     
     const frequencies = Object.values(valueCounts).sort((a, b) => b - a);
 
@@ -112,15 +130,15 @@ const PokerCalculator = () => {
     };
   };
 
-  const handleDragStart = (card) => {
+  const handleDragStart = (card: Card) => {
     setDraggedCard(card);
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
-  const handleDrop = (index) => {
+  const handleDrop = (index: number) => {
     if (draggedCard) {
       const newSelectedCards = [...selectedCards];
       newSelectedCards[index] = draggedCard;
@@ -129,14 +147,14 @@ const PokerCalculator = () => {
     }
   };
 
-  const renderCard = (card, isDraggable = true) => {
+  const renderCard = (card: Card | null, isDraggable = true) => {
     const color = card?.suit === '♥' || card?.suit === '♦' ? 'text-red-500' : 'text-black';
     return (
       <div 
         className={`${color} bg-white rounded-lg shadow-md w-12 h-16 flex items-center justify-center text-lg border border-gray-300 
           ${isDraggable ? 'cursor-move hover:border-blue-500' : ''} transition-colors`}
         draggable={isDraggable}
-        onDragStart={() => isDraggable && handleDragStart(card)}
+        onDragStart={() => isDraggable && card && handleDragStart(card)}
       >
         {card && (
           <div className="flex flex-col items-center">
@@ -148,7 +166,7 @@ const PokerCalculator = () => {
     );
   };
 
-  const renderDropZone = (index) => {
+  const renderDropZone = (index: number) => {
     return (
       <div
         className="w-12 h-16 rounded-lg bg-green-600 border border-green-500"
@@ -206,10 +224,10 @@ const PokerCalculator = () => {
           </div>
 
           <div className="w-80 shrink-0">
-            <div className="bg-gray-800 p-6 rounded-xl shadow-lg h-full">
-              <h3 className="text-white text-2xl font-semibold mb-6">Hand Probabilities</h3>
+            <div className="bg-gray-800 p-6 rounded-xl shadow-lg h-full overflow-y-auto max-h-[calc(100vh-2rem)]">
+              <h3 className="text-white text-2xl font-semibold mb-6">Probabilities</h3>
               {probabilities ? (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {Object.entries(probabilities)
                     .sort(([, a], [, b]) => b - a)
                     .map(([hand, prob]) => (
@@ -217,13 +235,13 @@ const PokerCalculator = () => {
                         <span className="capitalize text-gray-300 text-lg mb-1">
                           {hand.replace(/([A-Z])/g, ' $1').trim()}
                         </span>
-                        <div className="w-full bg-gray-700 rounded-full h-3 mb-1">
+                        <div className="w-full bg-gray-700 rounded-full h-2.5 mb-1">
                           <div 
-                            className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                            className="bg-blue-500 h-2.5 rounded-full transition-all duration-300"
                             style={{ width: `${prob * 100}%` }}
                           ></div>
                         </div>
-                        <span className="text-lg font-medium text-right text-gray-300">
+                        <span className="text-sm font-medium text-right text-gray-300">
                           {(prob * 100).toFixed(1)}%
                         </span>
                       </div>
