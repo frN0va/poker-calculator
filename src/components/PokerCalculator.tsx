@@ -8,6 +8,17 @@ interface Card {
   suit: string;
 }
 
+interface HandResult {
+  pair: boolean;
+  twoPair: boolean;
+  threeOfAKind: boolean;
+  straight: boolean;
+  flush: boolean;
+  fullHouse: boolean;
+  fourOfAKind: boolean;
+  straightFlush: boolean;
+}
+
 interface HandProbabilities {
   pair: number;
   twoPair: number;
@@ -64,7 +75,19 @@ const PokerCalculator = () => {
     });
 
     const cardsTocome = 5 - communityCards.length;
-    if (cardsTocome === 0) return calculateFinalHand(usedCards);
+    if (cardsTocome === 0) {
+      const finalHand = calculateFinalHand(usedCards);
+      return {
+        pair: finalHand.pair ? 1 : 0,
+        twoPair: finalHand.twoPair ? 1 : 0,
+        threeOfAKind: finalHand.threeOfAKind ? 1 : 0,
+        straight: finalHand.straight ? 1 : 0,
+        flush: finalHand.flush ? 1 : 0,
+        fullHouse: finalHand.fullHouse ? 1 : 0,
+        fourOfAKind: finalHand.fourOfAKind ? 1 : 0,
+        straightFlush: finalHand.straightFlush ? 1 : 0
+      };
+    }
 
     const trials = 10000;
     const results: HandProbabilities = {
@@ -78,19 +101,29 @@ const PokerCalculator = () => {
       const allCards = [...usedCards, ...simulatedCommunity];
       const handResult = calculateFinalHand(allCards);
       
-      Object.keys(handResult).forEach(hand => {
-        if (handResult[hand as keyof HandProbabilities]) {
+      Object.entries(handResult).forEach(([hand, hasHand]) => {
+        if (hasHand) {
           results[hand as keyof HandProbabilities]++;
         }
       });
     }
 
-    return Object.fromEntries(
-      Object.entries(results).map(([hand, count]) => [hand, count / trials])
-    ) as HandProbabilities;
+    // Calculate probabilities
+    const probabilities: HandProbabilities = {
+      pair: results.pair / trials,
+      twoPair: results.twoPair / trials,
+      threeOfAKind: results.threeOfAKind / trials,
+      straight: results.straight / trials,
+      flush: results.flush / trials,
+      fullHouse: results.fullHouse / trials,
+      fourOfAKind: results.fourOfAKind / trials,
+      straightFlush: results.straightFlush / trials
+    };
+
+    return probabilities;
   };
 
-  const calculateFinalHand = (cards: { value: number; suit: string }[]): HandProbabilities => {
+  const calculateFinalHand = (cards: { value: number; suit: string }[]): HandResult => {
     const sortedCards = [...cards].sort((a, b) => b.value - a.value);
     const values = sortedCards.map(card => card.value);
     const suits = sortedCards.map(card => card.suit);
